@@ -13,15 +13,23 @@
 #     `.type` + a `declarationPositions` goto list.
 #   * `positions` — the generic `raw -> positions` source-site layer the projection
 #     attributes with, standalone-reusable by later graph/nav consumers.
+#   * `aspectsProjection { keySemantics, structuralKeys ? … } { aspects }` — project
+#     aspect instances into per-aspect submodule option nodes, facet-generic (the
+#     projectable facets are discovered from the consumer's `keySemantics` map, never
+#     hardcoded to a facet name).
 #
-# The aspect/gen-lib projections and the MCP server package land in later tasks.
+# The gen-lib projection and the MCP server package land in later tasks.
 { }:
 let
   optionsProjectionLib = import ./options-projection.nix { };
+  aspectsProjectionLib = import ./aspects-projection.nix { };
 in
 {
   inherit (optionsProjectionLib)
     optionsProjection
     positions
+    ;
+  inherit (aspectsProjectionLib)
+    aspectsProjection
     ;
 }
