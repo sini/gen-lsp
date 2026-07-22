@@ -4,11 +4,11 @@
 # function — nixd calls them in its own evaluator. `forNixdJSON` is the WIRE view — `builtins.toJSON` (what an
 # MCP enumeration server's `nix eval --json` subprocess runs) cannot serialize a function ("cannot convert a
 # function to JSON"), so `enumerate` re-projects each tree into a JSON-safe ENUMERATION shape: an option leaf
-# keeps its `_type`/description/type-NAME/(JSON-safe default), every function dropped; an aspect node descends
-# ONE level to list its facets; the gen surface (flat member names + string `functionArgs` formals) passes
-# through. Keeping BOTH views in the library (not one in a downstream server) makes the library the single
-# source of truth and leaves the MCP server a dumb thin transport (`nix eval --json`, no logic). Pure builtins
-# (no prelude/gen dep) so the library stays nixpkgs-lib-free.
+# keeps its `_type`/description/type-NAME/(JSON-safe default), every function dropped, and a SUBMODULE leaf is
+# DESCENDED recursively through `getSubOptions` into a nested `subOptions` tree so an agent reads the full
+# shape + each field's default. Keeping BOTH views in the library (not one in a downstream server) makes the
+# library the single source of truth and leaves the MCP server a dumb thin transport (`nix eval --json`, no
+# logic). Pure builtins (no prelude/gen dep) so the library stays nixpkgs-lib-free.
 { }:
 let
   optionsProjectionLib = import ./options-projection.nix { };
@@ -28,7 +28,8 @@ let
 
   # The recursion depth bound: a defensive backstop against a cyclic `default` value that is NOT a derivation
   # (a derivation is short-circuited by its `type` tag below; this bounds any OTHER self-referential attrs a
-  # default might carry). At the bound a node renders opaque (`"<...>"`) rather than descending forever.
+  # default might carry) AND against a self-referential submodule type in the `subOptions` descent. At the
+  # bound a node renders opaque (`"<...>"`) / stops descending rather than recursing forever.
   maxDepth = 64;
 
   # Deep-sanitize a `default` VALUE into a JSON-safe one. The load-bearing case is a DERIVATION default: a
@@ -69,7 +70,8 @@ let
   defaultAttr = opt: if opt ? default then { default = jsonSafe maxDepth opt.default; } else { };
 
   # One option leaf -> its JSON-safe enumeration record: `_type`/description/type-NAME, plus `default` (JSON-
-  # safe) and `formals` when present (a gen-lib member carries `functionArgs` formals, not a `.type`).
+  # safe) and `formals` when present (a gen-lib member carries `functionArgs` formals, not a `.type`). The
+  # recursive `subOptions` descent is attached by `cleanNode`, not here (this is the leaf's own scalar shape).
   cleanLeaf =
     opt:
     {
@@ -80,38 +82,52 @@ let
     // defaultAttr opt
     // (if opt ? formals then { formals = opt.formals; } else { });
 
-  # The tree walk (mirrors the projections' own walk): sanitize at each option leaf, recurse through every
-  # other attrset, pass non-attrs through. A leaf's `.type` is reduced to its NAME here — NO descent into a
-  # submodule leaf's `getSubOptions` (BOUNDED: option trees nest recursively, so the agent completes PATHS
-  # from the attrset nesting + each option's type-name/description, never a fully-expanded — possibly non-
-  # terminating — type tree).
-  cleanTree =
-    node:
+  # The sub-options one SUBMODULE level down, JSON-safe-guarded. A gen-merge submodule DEFERS `getSubOptions`
+  # (it returns `{ }` — its sub-options are reachable only by evaluating `getSubModules` through the module
+  # fixpoint, which needs `evalModuleTree`, out of this pure lib): such a real option submodule bottoms out
+  # EMPTY here and is expanded by a nixd worker in-process instead. A SYNTHESIZED submodule (an aspect facet
+  # or field node, whose `getSubOptions = _: <records>`) returns its sub-options, which the walk surfaces. The
+  # call is `tryEval`-guarded and shape-checked so a forcing/throwing/non-attrs descent degrades to empty,
+  # never crashing the wire view; only a `submodule`-named type is descended (a scalar/attrsOf leaf is not).
+  subOptionsOf =
+    t:
+    if t == null || (t.name or null) != "submodule" then
+      { }
+    else
+      let
+        r = builtins.tryEval (if t ? getSubOptions then t.getSubOptions [ ] else { });
+      in
+      if r.success && builtins.isAttrs r.value then r.value else { };
+
+  # The unified WIRE walk (one function for every section — options tree, aspect registry, gen surface): at an
+  # option leaf, sanitize it (`cleanLeaf`) AND descend its submodule sub-options RECURSIVELY into a nested
+  # `subOptions` tree (so an agent reads aspect -> facet -> field + each field's default); at a plain attrset
+  # (the option-tree's own nesting, or an aspect registry keyed by name) recurse member-wise; pass non-attrs
+  # through. The `subOptions` key is attached ONLY when the descent yields a non-empty set — a deferred
+  # gen-merge options submodule stays a bare `submodule` type-name (nixd expands it in-process), a synthesized
+  # aspect facet surfaces its fields. Bounded by `depth` (the submodule-descent axis is the only unbounded one
+  # — a self-referential submodule type terminates at the bound; plain-attrset nesting is a finite value).
+  cleanNode =
+    depth: node:
     if isOpt node then
-      cleanLeaf node
+      let
+        base = cleanLeaf node;
+        subs = if depth > 0 then subOptionsOf (node.type or null) else { };
+        cleanedSubs = builtins.mapAttrs (_: cleanNode (depth - 1)) subs;
+      in
+      if cleanedSubs == { } then base else base // { subOptions = cleanedSubs; }
     else if builtins.isAttrs node then
-      builtins.mapAttrs (_: cleanTree) node
+      builtins.mapAttrs (_: cleanNode depth) node
     else
       node;
 
-  # One aspect node -> its JSON-safe record: description + its facet sub-options, descended ONE level. This is
-  # the one place a submodule is descended, because the aspect-list contract is "aspect names + their facets":
-  # force the facet option nodes via `getSubOptions {}` ONE level (bounded — a flat facet set) and clean each
-  # with `cleanLeaf`, which reduces a settings-shaped facet to its `submodule` type-name (its fields ride
-  # inside that facet's own submodule type, descended further only by a nixd worker in-process, not on the
-  # wire). Declaration-only (the projection synthesizes the facet nodes from static records), so this stays
-  # resolution-fixpoint-free like the projection it reads.
-  cleanAspect = node: {
-    _type = "option";
-    description = node.description or "";
-    type = "submodule";
-    settings = builtins.mapAttrs (_: cleanLeaf) (node.type.getSubOptions { });
-  };
+  # The unified WIRE sanitizer over any single projected section.
+  sanitize = cleanNode maxDepth;
 
-  # The three-section keys the composed views emit — the nixd option-provider config section names (`den` =
-  # the option-declaration tree, `den-aspects` = the aspect registry, `gen` = the gen-lib API surface). Both
-  # views key IDENTICALLY so a fleet exposes them under one namespaced output and the MCP server and a nixd
-  # worker index the same sections.
+  # The composed IN-PROCESS view: the three projections keyed GENERICALLY (`options` = the option-declaration
+  # tree, `aspects` = the aspect registry, `libs` = the gen-lib API surface). gen-lsp is a general library, so
+  # it emits neutral section names; a consumer maps these onto its own nixd option-provider section names (a
+  # den fleet routes `options` -> its `den` provider, etc.) in its own binding, NOT here.
   forNixd =
     {
       options,
@@ -123,30 +139,23 @@ let
       libs ? { },
     }:
     {
-      den = optionsProjection { inherit options; };
-      "den-aspects" = aspectsProjection (
+      options = optionsProjection { inherit options; };
+      aspects = aspectsProjection (
         { inherit keySemantics; } // (if structuralKeys == null then { } else { inherit structuralKeys; })
       ) { inherit aspects; };
-      gen = genLibProjection { } { inherit libs; };
+      libs = genLibProjection { } { inherit libs; };
     };
 
-  # The JSON-safe enumeration view object: sanitize a forNixd surface (or a single tree) to the WIRE shape.
+  # The JSON-safe enumeration view object: sanitize a single projected tree, or a WHOLE forNixd surface.
   enumerate = {
-    # Sanitize a forNixd option-leaf tree (`den` or `gen` — both are option-leaf trees) to JSON-safe shape.
-    optionsView = cleanTree;
-    # Sanitize a forNixd `den-aspects` registry: aspect name -> node, each descended one level for its facets.
-    aspectsView = builtins.mapAttrs (_: cleanAspect);
-    # The convenience over a WHOLE forNixd surface: the three JSON-safe trees keyed exactly as `forNixd` keys
-    # them. This is the value a fleet exposes for the MCP enumeration server — every leaf serializes cleanly
-    # under `nix eval --json`, functions dropped, aspect facets listed.
-    fromForNixd = surface: {
-      den = cleanTree surface.den;
-      "den-aspects" = builtins.mapAttrs (_: cleanAspect) surface."den-aspects";
-      gen = cleanTree surface.gen;
-    };
+    # Sanitize one projected section (an option-leaf tree or an aspect registry) to the JSON-safe WIRE shape.
+    inherit sanitize;
+    # Sanitize a WHOLE forNixd surface: every section cleaned, keyed exactly as `forNixd` keyed it. Key-
+    # agnostic (maps over whatever sections the surface carries), so it tracks `forNixd`'s section names.
+    fromForNixd = builtins.mapAttrs (_: sanitize);
   };
 
-  # The WIRE consumer entry: the same inputs `forNixd` takes, returning the three JSON-safe enumeration trees
+  # The WIRE consumer entry: the same inputs `forNixd` takes, returning the JSON-safe enumeration surface
   # (`enumerate.fromForNixd` over `forNixd`). A fleet exposes BOTH views under one namespaced flake output so
   # the MCP server `nix eval --json`s the enumeration while a nixd worker points at the in-process view.
   forNixdJSON = args: enumerate.fromForNixd (forNixd args);
