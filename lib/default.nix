@@ -17,12 +17,23 @@
 #     aspect instances into per-aspect submodule option nodes, facet-generic (the
 #     projectable facets are discovered from the consumer's `keySemantics` map, never
 #     hardcoded to a facet name).
+#   * `genLibProjection { } { libs }` — project a consumer-supplied attrset of gen
+#     libraries into an option-tree of members (names + `functionArgs` formals); no
+#     hardcoded allowlist, membership is the consumer's concern.
+#   * `forNixd { options, aspects, keySemantics ? , structuralKeys ? , libs ? }` — the
+#     composed IN-PROCESS view (the three projections, functions intact, for a nixd
+#     worker's own evaluator).
+#   * `forNixdJSON { … }` / `enumerate` — the composed WIRE view: the same three trees
+#     re-projected JSON-safe (functions dropped, derivation/cyclic defaults rendered as
+#     placeholders) for an MCP server's `nix eval --json`.
 #
-# The gen-lib projection and the MCP server package land in later tasks.
+# The MCP server package lands in a later task.
 { }:
 let
   optionsProjectionLib = import ./options-projection.nix { };
   aspectsProjectionLib = import ./aspects-projection.nix { };
+  genLibProjectionLib = import ./genlib-projection.nix { };
+  enumerateLib = import ./enumerate.nix { };
 in
 {
   inherit (optionsProjectionLib)
@@ -31,5 +42,13 @@ in
     ;
   inherit (aspectsProjectionLib)
     aspectsProjection
+    ;
+  inherit (genLibProjectionLib)
+    genLibProjection
+    ;
+  inherit (enumerateLib)
+    enumerate
+    forNixd
+    forNixdJSON
     ;
 }
