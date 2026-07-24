@@ -87,8 +87,12 @@ let
 in
 {
   flake.tests.enumerate = {
-    # THE FIX (load-bearing): a derivation-valued `default` does NOT crash — the whole wire surface is
-    # `toJSON`-safe. Pre-fix this expr STACK-OVERFLOWS (uncatchable), crashing the eager asserter's gate.
+    # THE FIX (load-bearing): a derivation-valued `default` does NOT crash the wire surface — it stays
+    # `toJSON`-safe (`builtins.toJSON` itself special-cases a derivation to its `outPath`; the derivation TAG
+    # is for a compact `"<derivation>"` marker, see test-derivation-placeholder-value). The ORIGINAL bool-
+    # predicate `deepJsonSafe` had NO depth bound and recursed into a derivation's self-referential attrs ->
+    # stack overflow (uncatchable by `tryEval`), crashing the eager asserter's whole gate; the DEPTH BOUND in
+    # the total sanitizer is what makes this terminate.
     test-derivation-default-json-safe = {
       expr = builtins.isString (builtins.toJSON jsonView);
       expected = true;

@@ -32,14 +32,22 @@ let
   # bound a node renders opaque (`"<...>"`) / stops descending rather than recursing forever.
   maxDepth = 64;
 
-  # Deep-sanitize a `default` VALUE into a JSON-safe one. The load-bearing case is a DERIVATION default: a
-  # derivation is an attrset whose `drvAttrs`/`outPath`/`all` are mutually self-referential, so a naive
-  # `isAttrs`-recursion (or `toJSON`) STACK-OVERFLOWS — and a stack overflow is UNCATCHABLE by `tryEval`
-  # (unlike a `throw`), so it MUST be ruled out by TAG before any descent: an attrset whose `type` reads
-  # `"derivation"` short-circuits to `"<derivation>"`. Every other unserializable node is mapped to a
-  # placeholder too (a function -> `"<function>"`; a throwing node, trapped per-level by `tryEval`, ->
-  # `"<error>"`; past the depth bound -> `"<...>"`), so the result is TOTAL — a scalar rides through, an
-  # attrset/list is sanitized element-wise, and the emitted default never breaks `nix eval --json`.
+  # Deep-sanitize a `default` VALUE into a JSON-safe one — TOTAL by construction: a function -> `"<function>"`,
+  # a throwing node (trapped per-level by `tryEval`) -> `"<error>"`, past the DEPTH BOUND -> `"<...>"`, a
+  # derivation -> `"<derivation>"`, a scalar rides through, an attrset/list is sanitized element-wise; the
+  # emitted default never breaks `nix eval --json`. Two INDEPENDENT guards doing DIFFERENT jobs (a reviewer
+  # empirically corrected an earlier conflation of them):
+  #  * the DEPTH BOUND is the anti-runaway backstop. A genuinely cyclic NON-derivation default (self-
+  #    referential attrs) would recurse forever; the bound stops it. This is the guard the ORIGINAL bool-
+  #    predicate `deepJsonSafe` LACKED — with no bound it recursed into a derivation's mutually self-
+  #    referential `all`/`out`/`drvAttrs` and STACK-OVERFLOWED (a stack overflow is UNCATCHABLE by `tryEval`,
+  #    unlike a `throw`). The bound alone makes the walk terminate on ANY value, derivation or not.
+  #  * the DERIVATION TAG (`(val.type or null) == "derivation"`) is for compact, intentional OUTPUT, not
+  #    crash-safety: `builtins.toJSON` already special-cases a derivation (serializes its `outPath` store
+  #    path, no recursion, no crash). Without the tag the bounded walk still terminates, but it wastefully
+  #    forces ~depth levels of the derivation's internal attr graph and yields its store path (toJSON coerces
+  #    the walked copy through its retained `outPath`) instead of the clear `"<derivation>"` marker — so the
+  #    tag short-circuits that waste and emits the intentional placeholder.
   jsonSafe =
     depth: v:
     let
@@ -89,6 +97,12 @@ let
   # or field node, whose `getSubOptions = _: <records>`) returns its sub-options, which the walk surfaces. The
   # call is `tryEval`-guarded and shape-checked so a forcing/throwing/non-attrs descent degrades to empty,
   # never crashing the wire view; only a `submodule`-named type is descended (a scalar/attrsOf leaf is not).
+  #
+  # CONSUMER CAVEAT (wire depth): consequently the WIRE view does NOT nest a real OPTIONS submodule — it
+  # preserves the bare `submodule` type-name, and the IN-PROCESS `forNixd` view is what lets a nixd worker
+  # expand it via its own evaluator. Only synthesized ASPECT facets expand on the wire. So an MCP-only
+  # consumer (reading `forNixdJSON` alone) must NOT assume full options-submodule nesting — it gets aspect
+  # fields + defaults, but an options submodule's fields only from a nixd worker on the in-process view.
   subOptionsOf =
     t:
     if t == null || (t.name or null) != "submodule" then
