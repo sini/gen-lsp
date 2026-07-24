@@ -4,9 +4,14 @@
 # an `evalModules`, a `fetchTree` dep-dance, or a `gen-<lib>` input creeping into the
 # library source fails CI.
 #
-# Scope: lib/**.nix + the root flake.nix + default.nix (the library + its entry points).
-# NOT ci/ — the test harness legitimately uses nixpkgs.lib (including, here, to run this
-# scan) and pulls gen-merge / gen-aspects as fixtures.
+# Scope: lib/**.nix + default.nix (the LIBRARY and its dep-free entry). NOT ci/ (the test
+# harness legitimately uses nixpkgs.lib + gen-merge / gen-aspects fixtures) and — since
+# `packages.mcp` landed — NOT flake.nix: the flake now LEGITIMATELY carries a `nixpkgs`
+# input to build the Rust MCP binary. The invariant is "the LIB is dep-free," not "the
+# flake has zero nixpkgs". So the flake is checked by a DIFFERENT assertion below: its
+# `lib` output must be exactly `import ./lib { }` (empty args → nothing threaded into the
+# lib), which — together with the token scan proving no nixpkgs/gen reference EXISTS in the
+# lib source — is what keeps nixpkgs unreachable from the library.
 { genPrelude, lib, ... }:
 let
   libDir = ../../lib;
@@ -27,10 +32,6 @@ let
       code = stripComments (builtins.readFile (libDir + "/${name}"));
     }) nixFiles
     ++ [
-      {
-        name = "flake.nix";
-        code = stripComments (builtins.readFile ../../flake.nix);
-      }
       {
         name = "default.nix";
         code = stripComments (builtins.readFile ../../default.nix);
@@ -61,10 +62,27 @@ let
     src:
     map (tok: "${src.name}: '${tok}'") (lib.filter (tok: genPrelude.hasInfix tok src.code) forbidden)
   ) sources;
+
+  # The flake's `lib` output must remain the bare, empty-args import of the dep-free
+  # library — nothing (nixpkgs, gen) threaded in. With the token scan above proving the
+  # lib source references no forbidden dep, this closes the loop: the library is both
+  # dep-free in its own source AND instantiated with no deps by the flake.
+  flakeSource = stripComments (builtins.readFile ../../flake.nix);
+  libOutputIsDepFree = genPrelude.hasInfix "lib = import ./lib { };" flakeSource;
 in
 {
-  flake.tests.purity.test-library-source-is-dep-free-pure-builtins = {
-    expr = violations;
-    expected = [ ];
+  flake.tests.purity = {
+    test-library-source-is-dep-free-pure-builtins = {
+      expr = violations;
+      expected = [ ];
+    };
+
+    # The flake exposes the library via the empty-args `import ./lib { }` (no nixpkgs/gen
+    # passed into the lib), even though the flake itself now carries a `nixpkgs` input for
+    # the `packages.mcp` binary.
+    test-flake-lib-output-is-dep-free-import = {
+      expr = libOutputIsDepFree;
+      expected = true;
+    };
   };
 }

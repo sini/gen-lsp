@@ -1,0 +1,19 @@
+[package]
+name = "gen-lsp-mcp"
+version = "0.1.0"
+edition = "2021"
+description = "gen-lsp enumeration MCP server — drives the customer's `nix` to project a gen-stack fleet's option/aspect/gen-lib API surface for agents"
+license = "MIT"
+
+[[bin]]
+name = "gen-lsp-mcp"
+path = "src/main.rs"
+
+[dependencies]
+# serde_json only (it pulls serde without derive). No async runtime, no MCP SDK: MCP-over-stdio is
+# newline-delimited JSON-RPC 2.0, hand-rolled here so the vendored Cargo.lock stays tiny and the
+# `buildRustPackage` (cargoLock.lockFile) build is hermetic. See README.md § "Why hand-rolled".
+serde_json = "1"
+
+[profile.release]
+opt-level = 2

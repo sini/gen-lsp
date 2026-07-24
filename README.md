@@ -16,11 +16,16 @@ to project against), never as runtime inputs. The purity invariant is enforced b
 
 ## Status
 
-Scaffold — an empty-but-valid gen library whose CI runs. Later tasks add the projection
-library and a Rust MCP server (`packages.mcp`).
+The projection library — `optionsProjection`, `aspectsProjection`, `genLibProjection`,
+and the composed `forNixd` / `forNixdJSON` views — and the Rust MCP enumeration server
+(`packages.<system>.mcp`) are in place. `nixpkgs` is a flake input ONLY for the MCP
+package; the library stays dep-free (`ci/tests/purity.nix`).
 
 ## Layout
 
 - `lib/` — the dep-free projection library (`nix eval .#lib`).
+- `mcp/` — the Rust MCP enumeration server (`nix build .#mcp`): a thin stdio transport
+  that drives the customer's `nix` over the fleet's `<output-attr>.enumerate` output.
+  Generalized off den: `--namespace` / `--output-attr` (see `mcp/README.md`).
 - `ci/` — the CI flake (`nix flake check ./ci`): tests + treefmt, on the shared
   `gen.lib.mkCi` harness.
