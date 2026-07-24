@@ -93,8 +93,12 @@ libs pass through).
 
 ```
 nix build .#mcp                                       # build the binary (Nix, hermetic — vendored Cargo.lock)
-nix run .#mcp -- --fleet "path:$PWD?dir=examples/fleet"    # against a worked example fleet
+nix run .#mcp -- --fleet "path:/path/to/your/fleet" --namespace <ns> --output-attr <attr>
 ```
+
+Point `--fleet` at a flake exposing `<output-attr>.enumerate` (the JSON-safe view — see [Fleet
+wiring](#fleet-wiring)); a den consumer gets `den-lsp.enumerate` auto-exported, so the bare
+`nix run .#mcp -- --fleet <ref>` defaults (`--namespace den`, `--output-attr den-lsp`) just work.
 
 For an MCP client, register the binary as a stdio server and pass `--fleet <ref>` (or set `<NS>_FLEET`), plus
 `--namespace` / `--output-attr` if the fleet is not a default-`den` fleet.
