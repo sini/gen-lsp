@@ -86,8 +86,9 @@ pure; the server passes `--impure` only so an unlocked/dirty local path also wor
 raw `forNixd` projections are built for a nixd editor worker's **in-process** walk — an option leaf's `.type`
 is a function-carrying type record, an aspect node's `getSubOptions` is a function — so `builtins.toJSON`
 (what `nix eval --json` runs) cannot serialize them. The enumeration view re-projects each tree into JSON-safe
-records (leaf → `_type`/description/type-name/JSON-safe default/formals; aspect → settings descended one level;
-libs pass through).
+records (leaf → `_type`/description/type-name/JSON-safe default/formals; aspect facets descended recursively to
+their field defaults; libs pass through). Real options submodules do not nest on the wire (their `getSubOptions`
+defers to the module fixpoint) — a nixd worker expands those in-process; only synthesized aspect facets expand here.
 
 ## Build / run
 
