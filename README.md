@@ -116,13 +116,16 @@ surface JSON-safe for the wire (`= enumerate.fromForNixd (forNixd args)`). `enum
 
 ## Two accuracy notes worth knowing
 
-**Wire-depth caveat.** Real gen-merge options submodules *defer* `getSubOptions` — it returns `{ }` purely
-(the sub-options are reachable only through the module fixpoint, which needs `evalModuleTree` and would
-break dep-free purity). So `forNixdJSON` does **not** nest a real options submodule: it preserves the bare
-`submodule` type-name and a nixd worker expands it in-process from `forNixd`. Only **synthesized** aspect
-facets/fields expand on the wire. An MCP-only consumer must not assume full options-submodule nesting — it
-gets aspect fields + defaults, but an options submodule's fields only from a nixd worker on the in-process
-view.
+**Wire depth.** `forNixdJSON` nests **both** submodule flavours, uniformly. A real gen-merge options
+submodule implements the introspection half of the nixpkgs `mkOptionType` protocol — `getSubOptions`
+evaluates the submodule's module tree and returns its declared option records — and a **synthesized**
+aspect facet/field returns its records directly. Both descend through the same call, so an MCP-only
+consumer reading `forNixdJSON` gets options-submodule fields as well as aspect fields + defaults.
+
+*Previously* gen-merge stubbed `getSubOptions` to `_prefix: { }` on every type, so a real options
+submodule stayed a bare `submodule` type-name on the wire and only a nixd worker could expand it
+in-process. That limitation is retired; the in-process `forNixd` view remains available but is no longer
+required for this.
 
 **Derivation-safety.** The wire sanitizer carries a recursion **depth bound**, and that bound — not the
 derivation tag — is the anti-runaway guard. A genuinely cyclic non-derivation default (self-referential

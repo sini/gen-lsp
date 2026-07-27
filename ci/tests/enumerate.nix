@@ -148,11 +148,32 @@ in
       };
     };
 
-    # A real gen-merge options submodule DEFERS `getSubOptions` (returns `{ }`), so the wire view does NOT
-    # attach `subOptions` — it stays a bare `submodule` type-name that a nixd worker expands in-process.
-    test-options-submodule-not-expanded = {
-      expr = jsonView.options.grp ? subOptions;
-      expected = false;
+    # A real gen-merge options submodule EXPANDS on the wire: gen-merge implements the introspection half
+    # of the nixpkgs `mkOptionType` protocol, so `getSubOptions` returns the declared sub-options instead
+    # of the old `_prefix: { }` stub, and the walk attaches `subOptions` like it already did for a
+    # synthesized aspect facet. One rule for both, no wire-depth caveat.
+    #
+    # Pins the CONTENTS, not just presence: `? subOptions` alone would go green again on any regression
+    # that re-empties the descent (an empty set still attaches nothing, and an inverted boolean says
+    # nothing about what came back). The field name and its resolved default are the actual contract.
+    test-options-submodule-expanded = {
+      # `or`-guarded so a regression reports a readable DIFF through the asserter rather than throwing
+      # `attribute 'subOptions' missing` and crashing the whole gate. Not vacuous: an empty descent
+      # yields `false` / `[ ]` / `<<absent>>`, none of which match.
+      expr =
+        let
+          subs = jsonView.options.grp.subOptions or { };
+        in
+        {
+          attached = jsonView.options.grp ? subOptions;
+          fields = builtins.attrNames subs;
+          innerDefault = (subs.inner or { }).default or "<<absent>>";
+        };
+      expected = {
+        attached = true;
+        fields = [ "inner" ];
+        innerDefault = 3;
+      };
     };
 
     # The gen surface passes through JSON-safe: a member's `functionArgs` formals survive as a plain attrset.

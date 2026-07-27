@@ -87,8 +87,9 @@ raw `forNixd` projections are built for a nixd editor worker's **in-process** wa
 is a function-carrying type record, an aspect node's `getSubOptions` is a function — so `builtins.toJSON`
 (what `nix eval --json` runs) cannot serialize them. The enumeration view re-projects each tree into JSON-safe
 records (leaf → `_type`/description/type-name/JSON-safe default/formals; aspect facets descended recursively to
-their field defaults; libs pass through). Real options submodules do not nest on the wire (their `getSubOptions`
-defers to the module fixpoint) — a nixd worker expands those in-process; only synthesized aspect facets expand here.
+their field defaults; libs pass through). Real options submodules nest on the wire too — gen-merge implements
+`getSubOptions` as part of the nixpkgs `mkOptionType` protocol, so both they and synthesized aspect facets
+descend through the same call. (They did not, while gen-merge stubbed that method; a nixd worker was needed.)
 
 ## Build / run
 

@@ -90,19 +90,17 @@ let
     // defaultAttr opt
     // (if opt ? formals then { formals = opt.formals; } else { });
 
-  # The sub-options one SUBMODULE level down, JSON-safe-guarded. A gen-merge submodule DEFERS `getSubOptions`
-  # (it returns `{ }` — its sub-options are reachable only by evaluating `getSubModules` through the module
-  # fixpoint, which needs `evalModuleTree`, out of this pure lib): such a real option submodule bottoms out
-  # EMPTY here and is expanded by a nixd worker in-process instead. A SYNTHESIZED submodule (an aspect facet
-  # or field node, whose `getSubOptions = _: <records>`) returns its sub-options, which the walk surfaces. The
-  # call is `tryEval`-guarded and shape-checked so a forcing/throwing/non-attrs descent degrades to empty,
-  # never crashing the wire view; only a `submodule`-named type is descended (a scalar/attrsOf leaf is not).
+  # The sub-options one SUBMODULE level down, JSON-safe-guarded. BOTH submodule flavours descend through the
+  # same call: a REAL gen-merge options submodule implements the introspection half of the nixpkgs
+  # `mkOptionType` protocol (`getSubOptions` evaluates the submodule's module tree and returns its declared
+  # option records), and a SYNTHESIZED submodule (an aspect facet or field node, whose
+  # `getSubOptions = _: <records>`) returns its records directly. One rule, no flavour split. The call is
+  # `tryEval`-guarded and shape-checked so a forcing/throwing/non-attrs descent degrades to empty, never
+  # crashing the wire view; only a `submodule`-named type is descended (a scalar/attrsOf leaf is not).
   #
-  # CONSUMER CAVEAT (wire depth): consequently the WIRE view does NOT nest a real OPTIONS submodule — it
-  # preserves the bare `submodule` type-name, and the IN-PROCESS `forNixd` view is what lets a nixd worker
-  # expand it via its own evaluator. Only synthesized ASPECT facets expand on the wire. So an MCP-only
-  # consumer (reading `forNixdJSON` alone) must NOT assume full options-submodule nesting — it gets aspect
-  # fields + defaults, but an options submodule's fields only from a nixd worker on the in-process view.
+  # (Historical: gen-merge once stubbed `getSubOptions` to `_prefix: { }` on every type, so a real options
+  # submodule bottomed out EMPTY here and only a nixd worker could expand it in-process. That wire-depth
+  # caveat is retired — the descent is uniform now.)
   subOptionsOf =
     t:
     if t == null || (t.name or null) != "submodule" then
