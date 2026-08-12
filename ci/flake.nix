@@ -1,6 +1,6 @@
 {
   inputs = {
-    gen.url = "github:sini/gen";
+    gen-harness.url = "github:sini/gen-harness";
     # Fixture deps: gen-merge builds synthetic option trees and gen-aspects builds
     # aspect instances for the projection tests to consume. The library under test
     # (../lib) takes NO inputs — it is dep-free pure builtins (see ci/tests/purity.nix).
@@ -13,12 +13,12 @@
 
   outputs =
     inputs@{
-      gen,
+      gen-harness,
       gen-merge,
       gen-aspects,
       ...
     }:
-    gen.lib.mkCi {
+    gen-harness.lib.mkCi {
       inherit inputs;
       name = "gen-lsp";
       testModules = ./tests;
