@@ -117,11 +117,11 @@
         "treefmt-nix": "treefmt-nix_2"
       },
       "locked": {
-        "lastModified": 1786992563,
-        "narHash": "sha256-EHCeibV9DHhMyLZO5TVQtctagB9B3Fpz0SMi1VNHlkI=",
+        "lastModified": 1788487101,
+        "narHash": "sha256-52grjoie6kNk5fYHJJTbMuBGSCYTZ6OPcoNA/70kEgs=",
         "owner": "sini",
         "repo": "gen-harness",
-        "rev": "a470cf33d54b9c064d51c2ab3f66c5f0b256c760",
+        "rev": "c97e2ef94b73daf190e1260d42848ee7139d3e19",
         "type": "github"
       },
       "original": {

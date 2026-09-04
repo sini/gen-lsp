@@ -22,11 +22,11 @@ the same `nix` the customer builds with. The server never references a specific 
 The server is a generalized extraction of a den-specific prototype. Two flags parameterize the consumer
 surface (with den-flavored defaults so the out-of-the-box behavior matches the original):
 
-| flag | default | effect |
-| ---- | ------- | ------ |
-| `--namespace <ns>` | `den` | prefixes the two consumer-scoped tool names, the `serverInfo` id, and the fleet env var. |
-| `--output-attr <attr>` | `den-lsp` | the flake output attr the tools read (`(getFlake <fleet>).<output-attr>.enumerate.<section>`). |
-| `--fleet <ref>` | — | the customer's fleet reference (flake ref / path); falls back to the `<NS>_FLEET` env var (`DEN_FLEET` at the default namespace, `GEN_FLEET` under `--namespace gen`, …). |
+| flag                   | default   | effect                                                                                                                                                                    |
+| ---------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--namespace <ns>`     | `den`     | prefixes the two consumer-scoped tool names, the `serverInfo` id, and the fleet env var.                                                                                  |
+| `--output-attr <attr>` | `den-lsp` | the flake output attr the tools read (`(getFlake <fleet>).<output-attr>.enumerate.<section>`).                                                                            |
+| `--fleet <ref>`        | —         | the customer's fleet reference (flake ref / path); falls back to the `<NS>_FLEET` env var (`DEN_FLEET` at the default namespace, `GEN_FLEET` under `--namespace gen`, …). |
 
 ## The three tools
 
@@ -34,11 +34,11 @@ Tool wire names are underscore-only — MCP and the Anthropic tool API validate 
 `^[a-zA-Z0-9_-]{1,128}$`, so a dotted name would be rejected by the clients (Claude/agents) this server
 targets. The composed namespaced names are re-validated at startup (a bad `--namespace` fails fast).
 
-| tool | args | returns |
-| ---- | ---- | ------- |
-| `<ns>_schema` | — | the projected option tree (`<ns>.*` options) as JSON — each leaf carries `_type`, a description, and its option type name. |
-| `<ns>_aspects_list` | — | the fleet's declared aspects and, per aspect, its settings (name, default, type). |
-| `gen_lib_signature` | `lib` (required), `member` (optional) | gen substrate library member names + their `functionArgs` formals; with `member`, one member's signature. |
+| tool                | args                                  | returns                                                                                                                    |
+| ------------------- | ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `<ns>_schema`       | —                                     | the projected option tree (`<ns>.*` options) as JSON — each leaf carries `_type`, a description, and its option type name. |
+| `<ns>_aspects_list` | —                                     | the fleet's declared aspects and, per aspect, its settings (name, default, type).                                          |
+| `gen_lib_signature` | `lib` (required), `member` (optional) | gen substrate library member names + their `functionArgs` formals; with `member`, one member's signature.                  |
 
 **Why `gen_lib_signature` is NOT namespaced.** The first two tools describe the *consumer's own* option and
 aspect trees, so they carry the consumer's namespace. `gen_lib_signature` enumerates the gen substrate library

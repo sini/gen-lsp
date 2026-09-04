@@ -20,14 +20,14 @@ value shapes *out to nixd and MCP* — an editor language server and an agent to
 framework substrate: gen-lsp is **not** in `mkGenLibs`, it drives nothing, it imports nothing. It reads a
 shape and re-emits it.
 
-| Library | Role |
-|---------|------|
-| [gen-prelude](https://github.com/sini/gen-prelude) | Pure nixpkgs-lib-free utility base (builtins re-exports + vendored lib utils) |
-| [gen-merge](https://github.com/sini/gen-merge) | Byte-mode module merge engine (`evalModuleTree`, byte-identical to `lib.evalModules` over the priority subset) |
-| [gen-schema](https://github.com/sini/gen-schema) | Typed registries (kinds, instances, collections, refs) re-hosted on gen-merge |
-| [gen-aspects](https://github.com/sini/gen-aspects) | Aspect type system (traits, classification, dispatch) re-hosted on gen-merge |
-| [gen-flake](https://github.com/sini/gen-flake) | The nixpkgs boundary — compose purely, inject resolved values, build NixOS systems |
-| [gen-lsp](https://github.com/sini/gen-lsp) | **This lib** — the nixd/MCP boundary: project a gen option / aspect / gen-lib surface for editors and agents |
+| Library                                            | Role                                                                                                           |
+| -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| [gen-prelude](https://github.com/sini/gen-prelude) | Pure nixpkgs-lib-free utility base (builtins re-exports + vendored lib utils)                                  |
+| [gen-merge](https://github.com/sini/gen-merge)     | Byte-mode module merge engine (`evalModuleTree`, byte-identical to `lib.evalModules` over the priority subset) |
+| [gen-schema](https://github.com/sini/gen-schema)   | Typed registries (kinds, instances, collections, refs) re-hosted on gen-merge                                  |
+| [gen-aspects](https://github.com/sini/gen-aspects) | Aspect type system (traits, classification, dispatch) re-hosted on gen-merge                                   |
+| [gen-flake](https://github.com/sini/gen-flake)     | The nixpkgs boundary — compose purely, inject resolved values, build NixOS systems                             |
+| [gen-lsp](https://github.com/sini/gen-lsp)         | **This lib** — the nixd/MCP boundary: project a gen option / aspect / gen-lib surface for editors and agents   |
 
 gen-lsp reads the outputs of the composition engines (option trees from gen-merge, aspect instances from
 gen-aspects, lib bundles from anywhere) but depends on none of them — they appear only as CI *fixtures*
@@ -148,11 +148,11 @@ Generalized off a den prototype and parameterized: `--namespace` (default `den`)
 consumer-scoped tools and the server id / env var; `--output-attr` (default `den-lsp`) is the flake output
 the tools evaluate; `--fleet <ref>` (or `<NS>_FLEET`) is the customer's fleet reference.
 
-| tool | args | returns |
-| ---- | ---- | ------- |
-| `<ns>_schema` | — | the projected `<ns>.*` option tree as JSON (`_type`, description, type name per leaf) |
-| `<ns>_aspects_list` | — | the fleet's declared aspects and, per aspect, its settings (name, default, type) |
-| `gen_lib_signature` | `lib` (required), `member` (optional) | gen-lib member names + `functionArgs` formals; with `member`, one signature |
+| tool                | args                                  | returns                                                                               |
+| ------------------- | ------------------------------------- | ------------------------------------------------------------------------------------- |
+| `<ns>_schema`       | —                                     | the projected `<ns>.*` option tree as JSON (`_type`, description, type name per leaf) |
+| `<ns>_aspects_list` | —                                     | the fleet's declared aspects and, per aspect, its settings (name, default, type)      |
+| `gen_lib_signature` | `lib` (required), `member` (optional) | gen-lib member names + `functionArgs` formals; with `member`, one signature           |
 
 `gen_lib_signature` is **not** namespaced — it enumerates the gen substrate surface, the same ecosystem
 regardless of what a consumer names its fleet output, whereas the first two describe the consumer's own
