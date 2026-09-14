@@ -29,5 +29,11 @@
         merge = gen-merge.lib;
         aspects = gen-aspects.lib;
       };
+      extraModules = [
+        # gen-lsp is a TOOL, not an ecosystem library: it is absent from the register roster
+        # (`gen/lib/mkGenLibs.nix`), so no capability sheet is owed. Recorded as a declaration
+        # rather than left silent, so the absence reads as a decision (owner, 2026-09-14).
+        { gen.ci.agentsMd.sheet = "not-owed"; }
+      ];
     };
 }
