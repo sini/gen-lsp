@@ -200,9 +200,15 @@ A downstream den flakeModule auto-exports this output; the general contract is w
 ## Testing
 
 ```bash
-nix flake check ./ci          # nix-unit suites + treefmt
+nix develop ./ci --command ci # nix-unit suites, guarded
+nix flake check ./ci          # nix-unit suites + treefmt; unguarded
 cd mcp && cargo test          # the MCP smoke suite (needs `nix` on PATH — the hermetic build sets doCheck = false)
 ```
+
+`ci` refuses when anything under a declared read root is unknown to git — any extension or name,
+`_`-prefixed included — and the remedy is `git add` or a move. The bare `nix-unit --flake ./ci#tests`
+and `nix flake check ./ci` are unguarded: they read a git-filtered copy of the tree, so an untracked
+cell is silently absent and the run stays green.
 
 The nix-unit suites cover each projection (`options`, `positions`, `aspects`, `genlib`), the composed
 `enumerate` views (including the derivation-safety and two-views distinctions), the MCP data contract
