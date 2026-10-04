@@ -18,38 +18,36 @@ let
     system = "x86_64-linux";
     builder = "/bin/sh";
   };
-  tree = merge.evalModuleTree {
-    modules = [
-      {
-        # a DERIVATION default — the self-referential attrs that overflow a naive JSON-safety walk.
-        options.pkg = merge.mkOption {
-          type = merge.types.raw;
-          default = drv;
-        };
-        # a scalar default — rides through the sanitizer unchanged.
-        options.count = merge.mkOption {
-          type = merge.types.int;
-          default = 7;
-        };
-        # a function default — unserializable, mapped to a placeholder (not a `toJSON` throw).
-        options.fn = merge.mkOption {
-          type = merge.types.raw;
-          default = (x: x);
-        };
-        # a real gen-merge submodule — it DEFERS `getSubOptions` (returns `{ }`, sub-options reachable only
-        # through the module fixpoint), so the wire view bottoms it out at the `submodule` type-name.
-        options.grp = merge.mkOption {
-          type = merge.types.submodule {
-            options.inner = merge.mkOption {
-              type = merge.types.int;
-              default = 3;
-            };
+  tree = merge.evalModuleTree { } [
+    {
+      # a DERIVATION default — the self-referential attrs that overflow a naive JSON-safety walk.
+      options.pkg = merge.mkOption {
+        type = merge.types.raw;
+        default = drv;
+      };
+      # a scalar default — rides through the sanitizer unchanged.
+      options.count = merge.mkOption {
+        type = merge.types.int;
+        default = 7;
+      };
+      # a function default — unserializable, mapped to a placeholder (not a `toJSON` throw).
+      options.fn = merge.mkOption {
+        type = merge.types.raw;
+        default = (x: x);
+      };
+      # a real gen-merge submodule — it DEFERS `getSubOptions` (returns `{ }`, sub-options reachable only
+      # through the module fixpoint), so the wire view bottoms it out at the `submodule` type-name.
+      options.grp = merge.mkOption {
+        type = merge.types.submodule {
+          options.inner = merge.mkOption {
+            type = merge.types.int;
+            default = 3;
           };
-          default = { };
         };
-      }
-    ];
-  };
+        default = { };
+      };
+    }
+  ];
 
   keySemantics = {
     settings = {

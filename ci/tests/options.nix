@@ -7,32 +7,30 @@
 let
   # A synthetic option tree: a flat `int` leaf, a `submodule` leaf, an `attrsOf` leaf. Reading `.options`
   # gives the un-forced declaration tree — the projection never enters the fixpoint / forces `.config`.
-  tree = merge.evalModuleTree {
-    modules = [
-      {
-        options.foo = merge.mkOption {
-          type = merge.types.int;
-          description = "a foo";
-          default = 42;
-        };
-        options.sub = merge.mkOption {
-          type = merge.types.submodule {
-            options.bar = merge.mkOption {
-              type = merge.types.int;
-              default = 1;
-            };
+  tree = merge.evalModuleTree { } [
+    {
+      options.foo = merge.mkOption {
+        type = merge.types.int;
+        description = "a foo";
+        default = 42;
+      };
+      options.sub = merge.mkOption {
+        type = merge.types.submodule {
+          options.bar = merge.mkOption {
+            type = merge.types.int;
+            default = 1;
           };
-          description = "a sub";
-          default = { };
         };
-        options.reg = merge.mkOption {
-          type = merge.types.attrsOf merge.types.int;
-          description = "a reg";
-          default = { };
-        };
-      }
-    ];
-  };
+        description = "a sub";
+        default = { };
+      };
+      options.reg = merge.mkOption {
+        type = merge.types.attrsOf merge.types.int;
+        description = "a reg";
+        default = { };
+      };
+    }
+  ];
   projected = genLsp.optionsProjection { options = tree.options; };
 
   # Synthetic refined type (gen-schema refined.nix shape): a base type wrapped with `__schema` carrying

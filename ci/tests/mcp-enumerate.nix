@@ -11,23 +11,21 @@
   ...
 }:
 let
-  tree = merge.evalModuleTree {
-    modules = [
-      {
-        # a scalar leaf — its `_type` + type-name are what `<ns>_schema` surfaces.
-        options.count = merge.mkOption {
-          type = merge.types.int;
-          default = 7;
-          description = "a counter";
-        };
-        # a raw leaf — a second option so the tree is not a singleton.
-        options.raw = merge.mkOption {
-          type = merge.types.raw;
-          default = "anything";
-        };
-      }
-    ];
-  };
+  tree = merge.evalModuleTree { } [
+    {
+      # a scalar leaf — its `_type` + type-name are what `<ns>_schema` surfaces.
+      options.count = merge.mkOption {
+        type = merge.types.int;
+        default = 7;
+        description = "a counter";
+      };
+      # a raw leaf — a second option so the tree is not a singleton.
+      options.raw = merge.mkOption {
+        type = merge.types.raw;
+        default = "anything";
+      };
+    }
+  ];
 
   keySemantics = {
     settings = {

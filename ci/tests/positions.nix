@@ -7,17 +7,15 @@
 let
   # A merged option leaf whose `mkOption` block is syntactically literal in THIS file — so probing it
   # recovers a source site INSIDE this test file.
-  tree = merge.evalModuleTree {
-    modules = [
-      {
-        options.foo = merge.mkOption {
-          type = merge.types.int;
-          description = "a foo";
-          default = 42;
-        };
-      }
-    ];
-  };
+  tree = merge.evalModuleTree { } [
+    {
+      options.foo = merge.mkOption {
+        type = merge.types.int;
+        description = "a foo";
+        default = 42;
+      };
+    }
+  ];
   projected = genLsp.optionsProjection { options = tree.options; };
   fooPos = projected.foo.declarationPositions;
   firstFoo = builtins.head fooPos;
