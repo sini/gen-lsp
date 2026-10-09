@@ -93,7 +93,9 @@ Projects a consumer-supplied attrset of gen libraries as an option tree of membe
 `builtins.functionArgs` **partial formals**. Thin by design: the gen libs are flat function attrsets
 carrying no signature metadata, so this projects names + outermost-pattern formals, never typed
 signatures. There is **no hardcoded allowlist** — membership is the consumer's concern (a fleet passes
-exactly the libs it wants surfaced). Doc-citation hover text is a deferred enrichment (an empty
+exactly the libs it wants surfaced). A retirement tombstone (a retired export that throws by name when
+forced) projects as a leaf with `retired = true` and description `"retired"`, so the projection stays total
+over a lib that carries one. Doc-citation hover text is a deferred enrichment (an empty
 description today): a lib's README lives in an input store path and its spec lives in a separate papers
 repo, neither reachable from the lib's pure function value. The construction argument is empty but kept
 curried to hold future config without a signature break.

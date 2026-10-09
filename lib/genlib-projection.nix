@@ -20,13 +20,23 @@ let
   # A non-function member (a nested sub-namespace) projects a bare leaf carrying no `formals` key. Formals
   # are PARTIAL by nature: `functionArgs` reports only the outermost attrset pattern's fields (`{ a, b }`),
   # empty for a positional lambda (`x: …`) — the thin surface a completion offers, not a full signature.
+  # A retirement TOMBSTONE (a retired export kept as a value that throws by name when forced) projects a
+  # leaf marked `retired`, so one retired name never takes the whole lib's projection down with it. Only
+  # the member's WHNF force is caught; a lambda that refuses only when CALLED is a live function here.
   projectGenLibMember =
     libName: member: fn:
-    {
-      _type = "option";
-      description = docFor libName member;
-    }
-    // (if builtins.isFunction fn then { formals = builtins.functionArgs fn; } else { });
+    if (builtins.tryEval fn).success then
+      {
+        _type = "option";
+        description = docFor libName member;
+      }
+      // (if builtins.isFunction fn then { formals = builtins.functionArgs fn; } else { })
+    else
+      {
+        _type = "option";
+        description = "retired";
+        retired = true;
+      };
 
   # One lib -> an attrset of its projected members. Descent is ONE level (lib -> members): a member that is
   # itself a sub-namespace projects as a single bare leaf, never re-walked. A lib carried as a bare function

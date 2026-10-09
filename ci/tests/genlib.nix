@@ -3,7 +3,8 @@
 # thin by design (the gen libs carry no signature metadata). The fixture hand-builds a SYNTHETIC `libs`
 # bundle (plain attrsets/lambdas; no gen-* dep) MIXING function members, a positional lambda, a non-function
 # sub-namespace, and two lib entries that are NOT attrsets — proving membership is the consumer's (every
-# supplied key is projected, no allowlist filters) and the projection is TOTAL over odd inputs.
+# supplied key is projected, no allowlist filters) and the projection is TOTAL over odd inputs, including a
+# member that is a retirement tombstone.
 { genLsp, ... }:
 let
   libs = {
@@ -31,6 +32,19 @@ let
     scalar = 42;
   };
   proj = genLsp.genLibProjection { } { inherit libs; };
+
+  # A lib publishing a retirement TOMBSTONE: a retired export kept as a value that throws by name when
+  # forced (the gen roster's registered tombstones all take this shape), beside one live function member
+  # and one live sub-namespace.
+  retiring = genLsp.genLibProjection { } {
+    libs.lib = {
+      make = { a, b }: a + b;
+      sub = {
+        nested = 1;
+      };
+      old = builtins.throw "lib: `old` is retired. Use `make`.";
+    };
+  };
 in
 {
   flake.tests.genlib = {
@@ -99,6 +113,33 @@ in
     test-scalar-lib = {
       expr = proj.scalar;
       expected = { };
+    };
+
+    # A retirement tombstone projects as a RETIRED leaf and the projection forces fully: the live members
+    # keep their leaves unchanged.
+    test-tombstone-projects-retired = {
+      expr = builtins.deepSeq retiring retiring;
+      expected = {
+        lib = {
+          make = {
+            _type = "option";
+            description = "";
+            formals = {
+              a = false;
+              b = false;
+            };
+          };
+          sub = {
+            _type = "option";
+            description = "";
+          };
+          old = {
+            _type = "option";
+            description = "retired";
+            retired = true;
+          };
+        };
+      };
     };
   };
 }
