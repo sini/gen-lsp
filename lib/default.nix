@@ -10,9 +10,9 @@
 # Surface so far:
 #   * `optionsProjection { options }` — re-key a gen-merge option tree into the shape
 #     a Nix LSP (nixd) walks: `_type == "option"` leaves with refinement-stripped
-#     `.type` + a `declarationPositions` goto list.
-#   * `positions` — the generic `raw -> positions` source-site layer the projection
-#     attributes with, standalone-reusable by later graph/nav consumers.
+#     `.type`, the engine's own `declarationPositions` goto list carried through.
+#   * `positions` — the generic `raw -> positions` source-site layer,
+#     standalone-reusable by later graph/nav consumers.
 #   * `aspectsProjection { keySemantics, structuralKeys ? … } { aspects }` — project
 #     aspect instances into per-aspect submodule option nodes, facet-generic (the
 #     projectable facets are discovered from the consumer's `keySemantics` map, never

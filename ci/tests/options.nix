@@ -86,7 +86,7 @@ in
     };
 
     # Every projected leaf carries a `declarationPositions` list of nixd goto records — the mkOption is
-    # syntactically literal in THIS test file, so `unsafeGetAttrPos` recovers a real site (line > 0).
+    # syntactically literal in THIS test file, so the engine's list names a real site (line > 0).
     test-has-positions = {
       expr =
         let

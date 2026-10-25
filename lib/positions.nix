@@ -3,12 +3,10 @@
 # schema dep) so `lib/**` stays nixpkgs-lib-free.
 #
 # The engine is `builtins.unsafeGetAttrPos <field> <attrs>`: for a SYNTACTICALLY-LITERAL attr field (the
-# un-merged source AST) it returns the field's `{ file; line; column; }`, else `null`. A gen-merge MERGED
-# option leaf preserves its `mkOption { ... }` field source positions (the option merge threads the
-# declared attrset through, like nixpkgs `opt // { ... }`), so probing a merged leaf's `type`/`default`/
-# `description` recovers the DECLARATION site — no raw-decl-module hoisting needed. A SYNTHESIZED leaf
-# (built from a record, carrying no literal source field) yields `null`, hence an EMPTY position list
-# (never a faked site).
+# un-merged source AST) it returns the field's `{ file; line; column; }`, else `null`. A SYNTHESIZED
+# attrset (built from a record, carrying no literal source field) yields `null`, hence an EMPTY position
+# list (never a faked site). Option leaves do not come through here: the engine publishes each leaf's
+# `declarationPositions`, which `optionsProjection` carries through.
 #
 # GENERIC BY DESIGN: the layer knows nothing of options — it maps (a field-preference list, a raw attrset)
 # to positions. A later graph/nav consumer reuses it by naming the fields worth probing on its own nodes

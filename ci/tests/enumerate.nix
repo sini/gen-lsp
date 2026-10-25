@@ -167,9 +167,14 @@ in
           fields = builtins.attrNames subs;
           innerDefault = (subs.inner or { }).default or "<<absent>>";
         };
+      # `_module` is the submodule evaluation's own four records, served at every record position as
+      # nixpkgs' `getSubOptions` serves them; the wire view is the in-process view sanitized, so it keeps them.
       expected = {
         attached = true;
-        fields = [ "inner" ];
+        fields = [
+          "_module"
+          "inner"
+        ];
         innerDefault = 3;
       };
     };

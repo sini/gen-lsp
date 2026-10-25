@@ -8,19 +8,10 @@
 # resolved `.config`.
 { }:
 let
-  # The generic source-position layer: `positions.positionsOf { fields } raw` maps a raw attrset to its
-  # fields' declaration sites (`unsafeGetAttrPos` over the un-merged AST). Reused here to attach
-  # `declarationPositions` to option leaves; standalone-reusable by later graph/nav consumers.
+  # The generic source-position layer, re-exported for graph/nav consumers. Option leaves do not use it:
+  # the engine publishes each leaf's `declarationPositions` (nixpkgs' goto field), and the projection
+  # keeps that list rather than re-deriving a site from the merged leaf's field positions.
   positions = import ./positions.nix { };
-
-  # The fields a MERGED option leaf carries whose source position IS its declaration site (its `mkOption`
-  # block): `type` first (a real option always declares it), `default`/`description` as fallbacks for a
-  # leaf whose `type` position is reconstructed. First hit -> the declaration anchor (positions.nix).
-  optionLeafFields = [
-    "type"
-    "default"
-    "description"
-  ];
 
   # A gen-merge option leaf: an attrset tagged `_type == "option"`.
   isOptionDecl = v: builtins.isAttrs v && v ? _type && v._type == "option";
@@ -29,17 +20,15 @@ let
   # replaced by its base type; a plain type passes through untouched.
   stripRefinements = t: if t ? __schema && (t.__schema ? refinements) then t.__schema.baseType else t;
 
-  # Project one leaf: keep every option field (`description`/`default`/...), cleaning refinement metadata
-  # off `.type` (a typeless leaf projects `type = null`). A non-refined submodule/attrsOf type passes
-  # through by identity, so its descent shape (`getSubOptions` / `nestedTypes.elemType`) is preserved.
-  # `declarationPositions` is read from the ORIGINAL `opt` (the un-merged leaf), NOT the `opt // { ... }`
-  # result — `unsafeGetAttrPos` on the rebuilt attrset would locate this file's `//`, not the source decl.
+  # Project one leaf: keep every option field (`description`/`default`/`declarationPositions`/...),
+  # cleaning refinement metadata off `.type` (a typeless leaf projects `type = null`). A non-refined
+  # submodule/attrsOf type passes through by identity, so its descent shape (`getSubOptions` /
+  # `nestedTypes.elemType`) is preserved.
   projectLeaf =
     opt:
     opt
     // {
       type = if opt ? type then stripRefinements opt.type else null;
-      declarationPositions = positions.positionsOf { fields = optionLeafFields; } opt;
     };
 
   # The tree walk: project at each option leaf, recurse through every other attrset, pass non-attrs
@@ -57,6 +46,7 @@ in
   inherit positions;
 
   # The projection entry: given a gen-merge option tree (`(evalModuleTree { ... }).options`), return the
-  # nixd-walkable tree — leaves re-keyed with refinement-stripped `.type` + `declarationPositions`.
+  # nixd-walkable tree — leaves re-keyed with refinement-stripped `.type`, the engine's own
+  # `declarationPositions` carried through.
   optionsProjection = { options }: walk options;
 }

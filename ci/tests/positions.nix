@@ -1,12 +1,12 @@
 # The shared source-position layer: `genLsp.positions` is a generic `raw -> positions` map recovering an
 # attrset's field declaration sites as nixd goto records `{ file; line; column; }`, via
-# `builtins.unsafeGetAttrPos`. `optionsProjection` attributes each option leaf's `declarationPositions`
-# with it; a later graph/nav feature reuses the SAME layer on its own nodes. Reading a position is
-# STRUCTURAL — it never forces a leaf's VALUE (the laziness seam).
+# `builtins.unsafeGetAttrPos`; a later graph/nav feature reuses it on its own nodes. Reading a position
+# is STRUCTURAL — it never forces a leaf's VALUE (the laziness seam). `optionsProjection` carries the
+# engine's own `declarationPositions` on each option leaf, which the leaf cell below reads.
 { merge, genLsp, ... }:
 let
-  # A merged option leaf whose `mkOption` block is syntactically literal in THIS file — so probing it
-  # recovers a source site INSIDE this test file.
+  # A merged option leaf whose `mkOption` block is syntactically literal in THIS file — so the engine's
+  # `declarationPositions` names a source site INSIDE this test file.
   tree = merge.evalModuleTree { } [
     {
       options.foo = merge.mkOption {

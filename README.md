@@ -63,13 +63,16 @@ gen-lsp is three projections plus the two composed views over them.
 Re-keys a gen-merge option tree — `(evalModuleTree { … }).options`, the evaluated `_type == "option"`
 leaves — into the tree nixd walks. Each leaf keeps `_type` / `description` / `default`, has gen-schema
 **refinement metadata stripped** off its `.type` (a `__schema`-carrying refined type is replaced by its
-`baseType`, so `__schema` never leaks), and gains a `declarationPositions` goto list. The walk is
+`baseType`, so `__schema` never leaks), and keeps the engine's `declarationPositions` goto list, one
+`{ file; line; column; }` entry per declaration. An entry may be `{ file; line = null; column = null; }`
+for a declaration with no literal source position (the engine's and nixpkgs' shape). The walk is
 structure-only and reads a leaf's *static* `.type` — it never forces resolved `.config`. A submodule /
 `attrsOf` leaf keeps its descent shape (`getSubOptions` / `nestedTypes.elemType`) intact.
 
 ### `positions`
 
-The generic `raw → positions` source-site layer the option projection is built on, exposed standalone.
+The generic `raw → positions` source-site layer, exposed standalone. The option projection does not use
+it: option leaves carry the engine's own `declarationPositions`.
 `positions.positionsOf { fields } raw` maps a raw attrset to its fields' declaration sites — nixd goto
 records `{ file; line; column; }` — via `builtins.unsafeGetAttrPos`. It knows nothing of options; a later
 graph/nav consumer reuses it by naming the fields worth probing on its own nodes. Reading a position is
@@ -220,8 +223,6 @@ The nix-unit suites cover each projection (`options`, `positions`, `aspects`, `g
 
 - **Refinement strip** — Cardelli, *Program Fragments, Linking, and Modularization* (POPL 1997), record
   subtyping: a refined type is projected to its base, the gen-schema module bridge.
-- **Position threading** — `unsafeGetAttrPos` over a merged option leaf recovers the `mkOption` field source
-  site because the option merge threads the declared attrset through (nixpkgs `opt // { … }`).
 - **Facet dispatch** — the `keySemantics` / structural-key classifier mirrors den's `classifyKey` three-branch
   key semantics.
 
